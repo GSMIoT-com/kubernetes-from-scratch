@@ -163,27 +163,94 @@ kubectl label node $NAME topology.kubernetes.io/zone=beijing-huaweicloud
 kubectl taint nodes arm64node arm64=rpi4:NoExecute
 ```
 
+
 ## 5. 安装一些基础插件
 
-安装Nvidia GPU支持
+安装需要配置helm，所以需要先安装helm，现在使用helm3
+
+需要安装的repo：
+
+```text
+NAME        	URL
+stable      	https://kubernetes-charts.storage.googleapis.com/
+jetstack    	https://charts.jetstack.io
+bitnami     	https://charts.bitnami.com/bitnami
+oteemocharts	https://oteemo.github.io/charts
+gitlab      	https://charts.gitlab.io/
+kong        	https://charts.konghq.com
+```
+
+调用 `helm repo add [name] [url]` 就可以安装了
+
+### 安装Nvidia GPU支持
 
 ```
 curl -sSLO https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/1.0.0-beta6/nvidia-device-plugin.yml
 
-# 编辑添加nodeSelector： nvida.com/gpu: "true"
-
 kubectl apply -f nvidia-device-plugin.yml
+
+kubectl -n kube-system patch deployment nvidia-device-plugin-daemonset \
+    -p  '{"spec":{"template":{"spec":{"nodeSelector":{"nvida.com/gpu":"true"}}}}}'
 ```
 
-安装`Ingress`
+### 安装存储Storage Provisioner
+
+可以用的存储有ceph，longhorn，hostpath
+
+主要存储选择使用nfs，nfs比较清晰可靠，可以在多节点共享
+
+安装nfs插件
+
+```shell
+NFS=1.1.1.1
+helm install \
+    -n kube-system \
+    nfs-client-provisioner \
+    stable/nfs-client-provisioner \
+    --set nfs.server=$NFS \
+    --set nfs.path=/export/nfs-volumes \
+    --set storageClass.name=nfs
+
+kubectl -n kube-system patch deployment nfs-client-provisioner \
+    -p  '{"spec":{"template":{"spec":{"nodeSelector":{"gsmiot.com/storage":"true"}}}}}'
+
+```
+
+### 安装MetalLB
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
+# On first install only
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+```
+
+### 安装`Ingress`
 
 Ingress有很多可选择的版本
 
 我选择Kong来处里，可以方便配置API验证简化操作
 
+```shell
+helm repo add kong https://charts.konghq.com
+helm repo update
 
+helm install -n kube-system kong kong/kong --set ingressController.installCRDs=false
+```
 
+```text
+NOTES:
+To connect to Kong, please execute the following commands:
 
+HOST=$(kubectl get svc --namespace kube-system kong-kong-proxy -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+PORT=$(kubectl get svc --namespace kube-system kong-kong-proxy -o jsonpath='{.spec.ports[0].port}')
+export PROXY_IP=${HOST}:${PORT}
+curl $PROXY_IP
 
+Once installed, please follow along the getting started guide to start using
+Kong: https://bit.ly/k4k8s-get-started
+```
+
+kong需要cloud provisioner的external loadbalancer可能要失败了
 
 
