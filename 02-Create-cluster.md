@@ -178,6 +178,7 @@ bitnami     	https://charts.bitnami.com/bitnami
 oteemocharts	https://oteemo.github.io/charts
 gitlab      	https://charts.gitlab.io/
 kong        	https://charts.konghq.com
+ingress-nginx	https://kubernetes.github.io/ingress-nginx
 ```
 
 调用 `helm repo add [name] [url]` 就可以安装了
@@ -225,6 +226,23 @@ kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manife
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 ```
 
+配置metallb-system/config添加loadbalancer访问地址：
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: home
+      protocol: layer2
+      addresses:
+      - 10.100.10.30-10.100.10.50
+```
+
 ### 安装`Ingress`
 
 Ingress有很多可选择的版本
@@ -252,5 +270,27 @@ Kong: https://bit.ly/k4k8s-get-started
 ```
 
 kong需要cloud provisioner的external loadbalancer可能要失败了
+
+kong可以搭配metallb来使用，现在还没搞好，先不用，还是用ingress-nginx
+
+还是用回 ingress-nginx
+
+通过helm安装
+
+```shell
+kubectl create ns ingress
+
+helm install -n ingress ingress-nginx ingress-nginx/ingress-nginx \
+    --set controller.hostNetwork=true,controller.service.type="",controller.kind=DaemonSet
+```
+
+
+
+
+
+
+
+
+
 
 
