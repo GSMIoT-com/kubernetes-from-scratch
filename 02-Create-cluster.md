@@ -284,7 +284,21 @@ helm install -n ingress ingress-nginx ingress-nginx/ingress-nginx \
     --set controller.hostNetwork=true,controller.service.type="",controller.kind=DaemonSet
 ```
 
+### 安装`cert-manager`
 
+集群证书需要自助管理
+
+这里使用cert-manager来处理
+
+```shell
+# 创建namespace
+kubectl create ns cert-manager
+
+# 安装
+helm install \
+    cert-manager jetstack/cert-manager \
+    --namespace cert-manager --set installCRDs=true
+```
 
 
 
