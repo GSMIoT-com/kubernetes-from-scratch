@@ -301,9 +301,28 @@ helm install \
 ```
 
 
+### 安装`external-dns`
 
+安装外部dns服务关联，方便接入互联网
 
+```shell
+kubectl create ns dns
 
+helm install -n dns external-dns bitnami/external-dns \
+    --set provider=cloudflare \
+    --set cloudflare.email=<CF_EMAIL> \
+    --set cloudflare.apiKey=<CF_API_KEY> \
+    --set cloudflare.proxied=false \
+    --set metrics.enabled=true \
+
+```
+
+在服务中添加：
+
+```yaml
+ # for creating record-set
+  external-dns.alpha.kubernetes.io/hostname: my-app.test-dns.com 
+```
 
 
 
